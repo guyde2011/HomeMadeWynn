@@ -37,7 +37,7 @@ commands:
       usage: /<command> [handler-id]
       permission: <plugin name>.reg
       permission-message: You don't have <permission>
-   class
+   class:
       description: Used to register click handlers in-game
       usage: /<command> [handler-id]
       permission: <plugin name>.reg
