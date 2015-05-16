@@ -1,0 +1,39 @@
+name: GuydeUtil
+main: com.guyde.plug.main.MainClass
+version: 1.0
+commands: 
+   readweapons:
+      description: Used to register click handlers in-game
+      usage: /<command> [handler-id]
+      permission: <plugin name>.reg
+      permission-message: You don't have <permission>
+   getweapon:
+      description: Used to register click handlers in-game
+      usage: /<command> [handler-id]
+      permission: <plugin name>.reg
+      permission-message: You don't have <permission>
+   readarmors:
+      description: Used to register click handlers in-game
+      usage: /<command> [handler-id]
+      permission: <plugin name>.reg
+      permission-message: You don't have <permission>
+   getarmor:
+      description: Used to register click handlers in-game
+      usage: /<command> [handler-id]
+      permission: <plugin name>.reg
+      permission-message: You don't have <permission>
+   readmobs:
+      description: Used to register click handlers in-game
+      usage: /<command> [handler-id]
+      permission: <plugin name>.reg
+      permission-message: You don't have <permission>
+   spawnmob:
+      description: Used to register click handlers in-game
+      usage: /<command> [handler-id]
+      permission: <plugin name>.reg
+      permission-message: You don't have <permission>
+   identify:
+      description: Used to register click handlers in-game
+      usage: /<command> [handler-id]
+      permission: <plugin name>.reg
+      permission-message: You don't have <permission>
