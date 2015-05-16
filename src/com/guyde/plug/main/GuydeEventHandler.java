@@ -189,9 +189,6 @@ public class GuydeEventHandler implements Listener{
 	}
 	@EventHandler(priority=EventPriority.HIGH)
 	public void onPlayerUse(PlayerInteractEvent event){
-		if (event.getPlayer().getItemInHand()==null || event.getPlayer().getItemInHand().getType()==Material.AIR){
-			PlayerDataManager.setClass(event.getPlayer(), new Assassin(event.getPlayer().getUniqueId()));
-		}
 		if (event.getAction()==Action.LEFT_CLICK_AIR || event.getAction()==Action.LEFT_CLICK_BLOCK){
 			if (event.getPlayer().getItemInHand()!=null && event.getPlayer().getItemInHand().getType()!=Material.AIR && event.getPlayer().getItemInHand().getType()==PlayerDataManager.GetClass(event.getPlayer()).getWeapon()){
 				PlayerDataManager.Click(event.getPlayer(), Clicks.Left());	

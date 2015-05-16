@@ -1,13 +1,6 @@
 package com.guyde.plug.main;
 
-import java.io.BufferedReader;
 import java.io.File;
-import java.io.FileReader;
-import java.io.IOException;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
 
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandSender;
@@ -19,6 +12,9 @@ import org.luaj.vm2.LuaValue;
 import org.luaj.vm2.lib.jse.CoerceJavaToLua;
 import org.luaj.vm2.lib.jse.JsePlatform;
 
+import com.guyde.plug.data.Archer;
+import com.guyde.plug.data.Assassin;
+import com.guyde.plug.data.PlayerDataManager;
 import com.guyde.plug.data.PlayerHealthRegen;
 import com.guyde.plug.data.PlayerManaRegen;
 import com.guyde.plug.data.RegisterAggro;
@@ -36,33 +32,14 @@ public class MainClass extends JavaPlugin{
     	new PlayerHealthRegen().run();
     	new PlayerManaRegen().run();
     }
-    // Fired when plugin is disabled
+    
     @Override
     public void onDisable() {
 
     }
     
-    private static String readFile(File file) throws IOException{
-    	BufferedReader br = new BufferedReader(new FileReader(file));
-        try {
-            StringBuilder sb = new StringBuilder();
-            String line = br.readLine();
 
-            while (line != null) {
-                sb.append(line);
-                sb.append(System.lineSeparator());
-                line = br.readLine();
-            }
-            return sb.toString();
-        } finally {
-            br.close();
-        }
-        
-    }
     public static MainClass instance;
-    static List<String> libs = new ArrayList<String>();
-    static Map<String,String> pre = new HashMap<String,String>();
-    static Map<String,String> chat = new HashMap<String,String>();
 	@Override
 	public boolean onCommand(CommandSender sender, Command cmd, String label, String[] args) {
 		if (cmd.getName().toLowerCase().equals("identify")){
@@ -130,6 +107,13 @@ public class MainClass extends JavaPlugin{
 				}
 				((Player)sender).getInventory().addItem(WynnItems.getArmor(total).CreateItemStack());
 				return true;
+			}
+		}
+		if (cmd.getName().toLowerCase().equals("class")){
+			if (args[0].equals("Archer")){
+				PlayerDataManager.setClass((Player)sender,new Archer(((Player)sender).getUniqueId()));
+			} else if (args[0].equals("Assassin")){
+				PlayerDataManager.setClass((Player)sender,new Assassin(((Player)sender).getUniqueId()));
 			}
 		}
 		if (cmd.getName().toLowerCase().equals("readarmors")){
