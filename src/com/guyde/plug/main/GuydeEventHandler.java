@@ -10,16 +10,19 @@ import net.md_5.bungee.api.ChatColor;
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
 import org.bukkit.entity.Arrow;
+import org.bukkit.entity.Creature;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.EntityType;
 import org.bukkit.entity.LivingEntity;
 import org.bukkit.entity.Player;
+import org.bukkit.entity.Projectile;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.block.Action;
 import org.bukkit.event.entity.EntityDamageByEntityEvent;
 import org.bukkit.event.entity.EntityDeathEvent;
+import org.bukkit.event.entity.EntityTargetEvent;
 import org.bukkit.event.player.AsyncPlayerChatEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.inventory.ItemStack;
@@ -28,14 +31,16 @@ import org.bukkit.potion.PotionEffectType;
 import org.bukkit.projectiles.ProjectileSource;
 import org.bukkit.util.Vector;
 
-import com.guyde.plug.data.Assassin;
 import com.guyde.plug.data.BowCooldown;
 import com.guyde.plug.data.Clicks;
 import com.guyde.plug.data.DamageManager;
 import com.guyde.plug.data.DropRate;
 import com.guyde.plug.data.DropRates;
 import com.guyde.plug.data.IdentifiesHelper;
+import com.guyde.plug.data.MobDrop;
 import com.guyde.plug.data.PlayerDataManager;
+import com.guyde.plug.data.QuestConstants;
+import com.guyde.plug.data.Quests;
 import com.guyde.plug.utils.CustomNameTracker;
 import com.guyde.plug.utils.TextCreator;
 
@@ -94,6 +99,14 @@ public class GuydeEventHandler implements Listener{
 		for (DropRate drop : DropRates.getDropRateRange(i)){
 			if (new Random().nextInt((i+45)*(5+i) - loot)<drop.rate()){
 				drops.add(drop.item().CreateItemStack());
+				
+			}
+		}
+		if (entity.hasMetadata("drops")){
+			for (MobDrop drop : (MobDrop[])entity.getMetadata("drops").get(0).value()){
+				if (new Random().nextInt((i+45)*(5+i) - loot)<drop.rate()){
+					drops.add(drop.getStack());
+				}
 			}
 		}
 		if (xp!=-1){
@@ -102,15 +115,21 @@ public class GuydeEventHandler implements Listener{
 		}
 		
 	}
-	
-	
-
+	@EventHandler
+	public void MobTarget(EntityTargetEvent event) {
+		if (event.getTarget().getType()!=EntityType.PLAYER){
+			event.setCancelled(true);
+		}
+	}
 	@EventHandler
 	public void entityDamageEntity(EntityDamageByEntityEvent event){
 		if (event.getEntity().getType()==EntityType.ARMOR_STAND){
 			if (event.getEntity().hasMetadata("tracking")){
 				((LivingEntity)event.getEntity().getMetadata("tracking").get(0).value()).damage(event.getDamage(), event.getDamager());
 			}
+			event.setCancelled(true); return;
+		}
+		if (event.getEntity().hasMetadata(QuestConstants.QUEST_NPC())){
 			event.setCancelled(true); return;
 		}
 		Entity damager = event.getDamager();
@@ -140,6 +159,11 @@ public class GuydeEventHandler implements Listener{
 			defense = DamageManager.getDefenseFor((Player)damaged);
 			event.setDamage(DamageManager.damageAgainst(damage, defense));
 		} else if (!damaged.hasMetadata("tracked")){
+			if (damager instanceof LivingEntity){
+				((Creature)damaged).setTarget((LivingEntity) damager);
+			} else {
+				((Creature)damaged).setTarget((LivingEntity)((Projectile)damager).getShooter());
+			}
 			event.setDamage(damage);
 			LivingEntity ent = (LivingEntity)damaged;
 			int place = (int)Math.ceil((10 * (Math.max(0,ent.getHealth()-event.getDamage())))/ent.getMaxHealth());
@@ -186,6 +210,9 @@ public class GuydeEventHandler implements Listener{
 	
 	@EventHandler
 	public void onPlayerEntityClick(org.bukkit.event.player.PlayerInteractEntityEvent event){
+		if (event.getRightClicked().hasMetadata(QuestConstants.QUEST_NPC()) && event.getRightClicked().getMetadata(QuestConstants.QUEST_NPC()).get(0).asBoolean()){
+			Quests.NpcClicked(event);
+		}
 	}
 	@EventHandler(priority=EventPriority.HIGH)
 	public void onPlayerUse(PlayerInteractEvent event){

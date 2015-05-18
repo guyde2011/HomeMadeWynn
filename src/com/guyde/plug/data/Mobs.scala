@@ -1,23 +1,29 @@
 package com.guyde.plug.data
 
+import java.util.Collection
+import java.util.Random
+import scala.collection.JavaConversions._
+import org.bukkit.Bukkit
 import org.bukkit.ChatColor
 import org.bukkit.Location
 import org.bukkit.Material
 import org.bukkit.craftbukkit.v1_8_R2.inventory.CraftItemStack
+import org.bukkit.entity.Ageable
 import org.bukkit.entity.Entity
 import org.bukkit.entity.EntityType
 import org.bukkit.entity.LivingEntity
+import org.bukkit.entity.Player
+import org.bukkit.entity.Zombie
 import org.bukkit.inventory.ItemStack
 import org.bukkit.metadata.FixedMetadataValue
+import org.bukkit.scheduler.BukkitRunnable
+import org.bukkit.util.Vector
 import org.luaj.vm2.LuaTable
 import org.luaj.vm2.LuaValue
 import com.guyde.plug.main.MainClass
-import net.minecraft.server.v1_8_R2.NBTTagCompound
-import org.bukkit.entity.Ageable
-import org.bukkit.entity.Zombie
 import com.guyde.plug.utils.TextCreator
-import org.bukkit.util.Vector
-
+import net.minecraft.server.v1_8_R2.NBTTagCompound
+import org.bukkit.block.Chest
 
 
 class MetaHolder{
@@ -192,7 +198,7 @@ class MobEquipment(){
       if (tag==null){
         tag = new NBTTagCompound()
       }
-      
+      tag.setBoolean("Unbreakable", true)
       var display = new NBTTagCompound()
  
       display.setInt("color",color)
@@ -204,10 +210,39 @@ class MobEquipment(){
 
 }
 
+class MobRegion(val rate : Int , mobs : Array[String] , start : Vector , end : Vector){
+  val minX = Math.min(start.getX,end.getX)
+  val minY = Math.min(start.getY,end.getY)
+  val minZ = Math.min(start.getZ,end.getZ)
+  val maxX = Math.max(start.getX,end.getX)
+  val maxY = Math.max(start.getY,end.getY)
+  val maxZ = Math.max(start.getZ,end.getZ)
+  new Updator()
+  
+  class Updator() extends BukkitRunnable(){
+    this.runTaskLater(MainClass.instance, 24*(10-rate) + new Random().nextInt(120))
+    final def run(){
+      val copy = start.clone()
+      val diff = new Vector(maxX,maxY,maxZ).subtract(new Vector(minX,minY,minZ))
+      val entities = MainClass.world.getNearbyEntities(copy.add(end).multiply(0.5).toLocation(MainClass.world),diff.getX/2d + 20,diff.getY/2d + 8,diff.getZ/2d + 20)
+      if (entities.size()<30 && entities.filter{ x => x.isInstanceOf[Player] }.size>0){
+       
+        mobs.foreach { mob => 
+        val x_rnd = new Random().nextInt(diff.getBlockX) + minX
+        val y_rnd = new Random().nextInt(diff.getBlockY) + minY
+        val z_rnd = new Random().nextInt(diff.getBlockX) + minZ
+        WynnMobs.getHostile(mob).createMob(new Location(MainClass.world,x_rnd,y_rnd,z_rnd)) }
+      }
+      new Updator()
+    }
+  }
+}
+
 class WynnMob(holder : MetaHolder , ent : EntityType ){
   
   def createMob(loc : Location){
     var spawned = loc.getWorld.spawnEntity(loc, ent)
+    if (spawned.getPassenger!=null) spawned.getPassenger.remove()
     holder.attachTo(spawned)
     var name = holder.get("name").asInstanceOf[String]
     TextCreator.createTrackedText(name, spawned, new Vector(0,0.125,0))
@@ -217,6 +252,8 @@ class WynnMob(holder : MetaHolder , ent : EntityType ){
     if (spawned.isInstanceOf[Zombie]){
       spawned.asInstanceOf[Zombie].setVillager(false)
       spawned.asInstanceOf[Zombie].setBaby(false)
+      val players : Array[Player] = Bukkit.getOnlinePlayers()
+      spawned.asInstanceOf[Zombie].setTarget(players(0))
     }
     if (spawned.isInstanceOf[LivingEntity]){
       spawned.asInstanceOf[LivingEntity].setMaxHealth(holder.get("max_hp").asInstanceOf[Integer].toDouble)
@@ -225,10 +262,17 @@ class WynnMob(holder : MetaHolder , ent : EntityType ){
     if (spawned.isInstanceOf[LivingEntity] && holder.hasTag("equipment")){
       var equipment = holder.get("equipment", classOf[MobEquipment])
       equipment.gear(spawned.asInstanceOf[LivingEntity])
-     
     }
+    
+   
   }
   
+}
+
+class MobDrop(val pos : Vector ,val slot : Int ,val rate : Int){
+  final def getStack() : ItemStack = {
+    return MainClass.world.getBlockAt(pos.toLocation(MainClass.world)).getState.asInstanceOf[Chest].getInventory.getItem(slot)
+  }
 }
 
 object WynnMobs{

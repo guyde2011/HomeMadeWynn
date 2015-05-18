@@ -275,9 +275,28 @@ object Clicks{
 object PlayerDataManager{
   private var classFor : Map[UUID,GameClass] = Map[UUID,GameClass]();
   private var clickFor : Map[UUID,Array[Click]] = Map[UUID,Array[Click]]();
+  private var questStatus : scala.collection.mutable.Map[UUID,Map[String,QuestStatus]] = scala.collection.mutable.Map[UUID,Map[String,QuestStatus]]()
   
+  final def resetQuests(){
+    questStatus = scala.collection.mutable.Map[UUID,Map[String,QuestStatus]]()
+  }
   final def setClass(p : Player , c : GameClass)  {
     classFor = classFor + (p.getUniqueId-> c)
+  }
+  
+  final def getQuestStatus(player : Player , str : String) : QuestStatus = {
+    if (!questStatus.contains(player.getUniqueId)){
+      var status = new QuestStatus(player.getUniqueId)
+      questStatus = questStatus + (player.getUniqueId -> Map[String,QuestStatus](str->status))
+      return status
+    }
+    var statuses : Map[String,QuestStatus] = questStatus(player.getUniqueId)
+    if (!statuses.contains(str)){
+      statuses = statuses+(str -> new QuestStatus(player.getUniqueId))
+      questStatus(player.getUniqueId) = statuses
+    }
+    return questStatus(player.getUniqueId)(str)
+    
   }
   
   final def GetClass(p : Player) : GameClass = {
