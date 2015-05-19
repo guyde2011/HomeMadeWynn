@@ -25,6 +25,7 @@ import org.bukkit.event.entity.EntityDeathEvent;
 import org.bukkit.event.entity.EntityTargetEvent;
 import org.bukkit.event.player.AsyncPlayerChatEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
+import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.metadata.FixedMetadataValue;
 import org.bukkit.potion.PotionEffectType;
@@ -47,6 +48,13 @@ import com.guyde.plug.utils.TextCreator;
 
 public class GuydeEventHandler implements Listener{
 
+	@EventHandler
+	public void onPlayerLogOut(PlayerQuitEvent event){
+		Player p = event.getPlayer();
+		if (PlayerDataManager.GetClass(p)!=null){
+			PlayerDataManager.GetClass(p).write(PlayerDataManager.getPlayerFile(p), PlayerDataManager.GetClass(p).name());
+		}
+	}
 	@EventHandler(priority=EventPriority.LOW)
 	public void playerChat(AsyncPlayerChatEvent event){
 
@@ -112,6 +120,7 @@ public class GuydeEventHandler implements Listener{
 		if (xp!=-1){
 			TextCreator.createTextAt(ChatColor.GRAY + "[" + ChatColor.RESET + "+" + xp + "XP" + ChatColor.GRAY + "]", event.getEntity().getEyeLocation().add(0,0.5,0), 60);
 			TextCreator.createTextAt(ChatColor.GRAY + "[" + killer.getDisplayName() + "]", event.getEntity().getEyeLocation().add(0,0.25,0), 60);
+			PlayerDataManager.GetClass(killer).addEXP(xp);
 		}
 		
 	}
@@ -233,7 +242,7 @@ public class GuydeEventHandler implements Listener{
 					event.getPlayer().setItemInHand(null);
 					event.getPlayer().setItemInHand(copy);
 					if (!event.getPlayer().hasMetadata("bow_charge")){
-						Arrow arrow = event.getPlayer().launchProjectile(Arrow.class);
+						Arrow arrow = event.getPlayer().getWorld().spawnArrow(event.getPlayer().getEyeLocation(),event.getPlayer().getEyeLocation().getDirection(),3,10);
 						arrow.setShooter(event.getPlayer());
 						event.getPlayer().setMetadata("bow_charge", new FixedMetadataValue(MainClass.instance , true));
 						new BowCooldown(event.getPlayer()).runTaskLater(MainClass.instance, 10);
