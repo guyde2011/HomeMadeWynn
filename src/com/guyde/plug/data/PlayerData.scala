@@ -1,31 +1,32 @@
 package com.guyde.plug.data;
 
-import java.io.ByteArrayOutputStream
-import java.nio.charset.Charset
+import java.io.File
 import java.util.Random
 import java.util.UUID
+
+import scala.collection.JavaConversions._
+
 import org.bukkit.Bukkit
 import org.bukkit.ChatColor
 import org.bukkit.Material
+import org.bukkit.configuration.file.FileConfiguration
+import org.bukkit.configuration.file.YamlConfiguration
 import org.bukkit.craftbukkit.v1_8_R2.entity.CraftPlayer
 import org.bukkit.craftbukkit.v1_8_R2.inventory.CraftItemStack
 import org.bukkit.entity.Player
 import org.bukkit.inventory.Inventory
 import org.bukkit.inventory.ItemStack
+import org.bukkit.inventory.PlayerInventory
 import org.bukkit.scheduler.BukkitRunnable
-import net.minecraft.server.v1_8_R2.IChatBaseComponent.ChatSerializer
-import net.minecraft.server.v1_8_R2.Item
-import net.minecraft.server.v1_8_R2.NBTCompressedStreamTools
-import net.minecraft.server.v1_8_R2.NBTTagCompound
-import net.minecraft.server.v1_8_R2.PacketPlayOutChat
+
 import com.guyde.plug.main.MainClass
 
+import net.minecraft.server.v1_8_R2.IChatBaseComponent.ChatSerializer
+import net.minecraft.server.v1_8_R2.NBTTagCompound
+import net.minecraft.server.v1_8_R2.PacketPlayOutChat
 class PlayerData(uuid : UUID){
   object Classes{
-    val warrior=1;
-    val mage=1;
-    val archer=1;
-    val assassin=1;
+    
   }
   
 }
@@ -76,89 +77,58 @@ class BowCooldown(player : Player) extends BukkitRunnable{
     player.removeMetadata("bow_charge",MainClass.instance);
   }
 }
-object InventoryHelper {
-  
-  def serializeInv(inv : Inventory) : NBTTagCompound = {
-    var comp = new NBTTagCompound();
-    var items = new NBTTagCompound();
-    comp.setInt("size", inv.getSize());
-    comp.setInt("stackSize", inv.getMaxStackSize());
-    comp.setString("name", inv.getName());
-    comp.setString("title", inv.getTitle());
-    var slot = 0;
-    inv.getContents().foreach(stack=>{
-      if (stack==null){
-        var empty_slot = new NBTTagCompound();
-        empty_slot.setBoolean("has_item", false);
-        items.set(slot + "", empty_slot);
-      } else {
-        items.set(slot + "", serializeItem(stack));
-      }
-      slot=slot+1;
-    })
-    comp.set("items", items);
-    return comp;
+
+abstract class SerializedData[T](private var _value : T){
+  final def value = _value
+  def put(file : FileConfiguration , path : String) : Unit
+  protected def read(file : FileConfiguration , path : String) : T
+  final def readFrom(file : FileConfiguration , path : String) : T = {
+    _value = read(file , path)
+    return _value
   }
   
-  private def serializeItem(stack : ItemStack) : NBTTagCompound = {
-    var itemStack = CraftItemStack.asNMSCopy(stack);
-    var item_comp = if (itemStack.hasTag()) itemStack.getTag() else new NBTTagCompound();
-    var item = new NBTTagCompound();
-    item.setInt("id", Item.getId(itemStack.getItem()));
-    item.setInt("meta", itemStack.getData());
-    item.setInt("amount", stack.getAmount());
-    item.set("nbt", item_comp);
-    item.setBoolean("has_item", true);
-    return item;
+}
+
+class DemaPlayerInv(val inv : Array[ItemStack], val armor : Array[ItemStack]){
+  final def setPlayerInventory(player : Player){
+    player.getInventory.setContents(inv)
+    player.getInventory.setArmorContents(armor)
   }
   
-  def unserializeInv(comp : NBTTagCompound) : Inventory = {
-    var items = comp.getCompound("items");
-    var size = comp.getInt("size");
-    var stacks = new Array[ItemStack](size);
-    for( slot <- 1 to size){
-      var item = items.getCompound(slot + "");
-      if (item.getBoolean("has_item")){
-        stacks(slot) = unserializeItem(item);
-      } else {
-        stacks(slot) = null;
-      }
-    }   
-    var inv = Bukkit.createInventory(null, 54)
-    inv.setContents(stacks);
-    return inv;
-  }
-  
-  private def unserializeItem(item : NBTTagCompound) : ItemStack = {
-    
-    var id = item.getInt("id");
-    var meta = item.getInt("meta");
-    var amount = item.getInt("amount");
-    var comp = item.getCompound("nbt");
-    var itemStack = new net.minecraft.server.v1_8_R2.ItemStack(Item.getById(id),amount , meta);
-    itemStack.setTag(comp);
-    return CraftItemStack.asBukkitCopy(itemStack);
+  def this(player : Player){
+    this(player.getInventory.getContents,player.getInventory.getArmorContents)
   }
 }
 
-trait InventorySaver{
+
+
+class SerializedInventory(private var inv : DemaPlayerInv) extends SerializedData[DemaPlayerInv](inv){
+  def this() = this(null)
   
-  def getInventory() : Inventory;
   
-  final def serializeString() : String = {
-    var tag = InventoryHelper.serializeInv(getInventory);
-    var stream = new ByteArrayOutputStream()
-    NBTCompressedStreamTools.a(tag,stream)
-    var bytes = stream.toByteArray()
-    return new String(bytes,Charset.forName("UTF-8"))
+  override def read(file : FileConfiguration , path : String) : DemaPlayerInv = {
+    var stacks = Array[ItemStack]()
+    for (i <- 1 to 36){
+      stacks = stacks :+ file.getItemStack(path + ".slot"+i)
+    }
+    var armor = Array[ItemStack](file.getItemStack(path+".helmet"),file.getItemStack(path+".chestplate"),file.getItemStack(path+".leggings"),file.getItemStack(path+".boots")) 
+    inv = new DemaPlayerInv(stacks,armor)
+    return inv
   }
   
-  final def serializeNBT() : NBTTagCompound = {
-    return InventoryHelper.serializeInv(getInventory);
+  final def put(file : FileConfiguration , path : String){
+    for (i <- 1 to 36){
+      file.set(path + ".slot"+i , inv.inv(i-1))
+    }
+    file.set(path+".helmet",inv.armor(0))
+    file.set(path+".chestplate",inv.armor(1))
+    file.set(path+".leggings",inv.armor(2))
+    file.set(path+".boots",inv.armor(3))
   }
-  
-  
 }
+
+
+
 
 object TextHelper{
   def aboveChatMessage(message : String , player : Player) : Unit ={
@@ -228,25 +198,83 @@ class DropRate(val item : WynnItem ,val rate : Int){
   }
 }
 
-abstract class GameClass(uuid : UUID, click : Click, weapon : Material) extends InventorySaver{
+abstract class GameClass(uuid : UUID, click : Click, weapon : Material){
   var level_requirement : Int
   var name : String
   var chatname : String
-  var level = 0;
+  var level = 1
   var getWeapon = weapon
+  private var xp = 0
   
-  def getClick() : Click = click;
+  def getClick() : Click = click
   
-  def getInventory() : Inventory = {
-    return Bukkit.getPlayer(uuid).getInventory;
+  def addEXP(exp : Int){
+    if (level>=75){
+      return
+    }
+    xp = exp+xp 
+    while (xp>=getXpFor(level)){
+      xp = xp - getXpFor(level)
+      level_up()
+    }
+    owner.setLevel(level)
+    owner.setExp(xp.toFloat/getXpFor(level).toFloat)
   }
+  
+  def level_up(){
+    owner.getNearbyEntities(50, 50, 50).foreach { 
+      x =>
+      x.sendMessage(ChatColor.RED + owner.getDisplayName() + " is now level " + (level+1)) 
+    }
+    level = level + 1
+    owner.sendMessage("                              " + ChatColor.YELLOW + ChatColor.BOLD + "Level Up")
+  }
+  
+  def owner : Player = Bukkit.getPlayer(uuid)
+  
+  def read(file : FileConfiguration , path : String){
+    val inv = new SerializedInventory().readFrom(file, path + ".inv")
+    inv.setPlayerInventory(owner)
+    level = file.getInt(path + ".lvl")
+    xp = file.getInt(path + ".exp")
+    var quest_status = Map[String,QuestStatus]()
+    val section = file.getConfigurationSection(path + ".quests")
+    section.getKeys(false).foreach { key => 
+      val stat = new QuestStatus(uuid) 
+      val cur = section.getConfigurationSection(key)
+      stat.started=cur.getInt("started")
+      stat.setStage(cur.getInt("stage"))
+      quest_status = quest_status + (key -> stat) 
+    }
+    owner.setLevel(level)
+    owner.setExp(xp.toFloat/getXpFor(level).toFloat)
+    PlayerDataManager.setQuestStatus(owner,quest_status)
+  }
+  
+  def write(file : FileConfiguration , path : String){
+    val inv = new DemaPlayerInv(owner)
+    new SerializedInventory(inv).put(file, path + ".inv")
+    file.set(path + ".lvl",level)
+    file.set(path + ".exp",xp)  
+    file.set(path + ".quests.dummy_quest.started",0)
+    file.set(path + ".quests.dummy_quest.stage",0)
+    PlayerDataManager.getQuestStatus(owner).foreach { e => 
+      file.set(path + ".quests." + e._1 + ".started",e._2.started)
+      file.set(path + ".quests." + e._1 + ".stage",e._2.getStage())
+    }
+
+    file.save(new File(MainClass.instance.getDataFolder,owner.getUniqueId + "/data.yml"))
+  }
+  
+  def getXpFor(lvl : Int) : Int = lvl * lvl * lvl + lvl * lvl * 75 
   
   def First_Play(){
     level = 1;
+    xp = 0
   }
   
   def JoinMessage(server : String) : String = {
-    return ChatColor.DARK_GREEN + Bukkit.getPlayer(uuid).getDisplayName + " has logged-in to " + server + " as a " + name 
+    return ChatColor.DARK_GREEN + owner.getDisplayName + " has logged-in to " + server + " as a " + name 
   }
   
   def first_skill : Skill
@@ -277,10 +305,28 @@ object PlayerDataManager{
   private var clickFor : Map[UUID,Array[Click]] = Map[UUID,Array[Click]]();
   private var questStatus : scala.collection.mutable.Map[UUID,Map[String,QuestStatus]] = scala.collection.mutable.Map[UUID,Map[String,QuestStatus]]()
   
+  final def setQuestStatus(player : Player , map : Map[String,QuestStatus]) = {
+    questStatus(player.getUniqueId) = map
+  }
   final def resetQuests(){
-    questStatus = scala.collection.mutable.Map[UUID,Map[String,QuestStatus]]()
+ //   questStatus = scala.collection.mutable.Map[UUID,Map[String,QuestStatus]]()
+  }
+  
+  final def getPlayerFile(p : Player) : FileConfiguration = {
+    if (!new File(MainClass.instance.getDataFolder,p.getUniqueId + "/data.yml").exists()){
+      new File(MainClass.instance.getDataFolder,p.getUniqueId.toString()).mkdirs()
+      new File(MainClass.instance.getDataFolder,p.getUniqueId.toString() + "/data.yml").createNewFile()
+    }
+    var config = YamlConfiguration.loadConfiguration(new File(MainClass.instance.getDataFolder,p.getUniqueId + "/data.yml"))
+    return config
   }
   final def setClass(p : Player , c : GameClass)  {
+    if (classFor.contains(p.getUniqueId)){
+      classFor(p.getUniqueId).write(getPlayerFile(p), classFor(p.getUniqueId).name)
+    }
+    if (getPlayerFile(p).contains(c.name)){
+      c.read(getPlayerFile(p), c.name)
+    }
     classFor = classFor + (p.getUniqueId-> c)
   }
   
@@ -299,6 +345,14 @@ object PlayerDataManager{
     
   }
   
+  final def getQuestStatus(player : Player) : Map[String,QuestStatus] = {
+    if (!questStatus.contains(player.getUniqueId)){
+      questStatus = questStatus + (player.getUniqueId -> Map[String,QuestStatus]())
+    }
+    return questStatus(player.getUniqueId)
+    
+  }
+  
   final def GetClass(p : Player) : GameClass = {
     return classFor(p.getUniqueId)
   }
@@ -312,17 +366,33 @@ object PlayerDataManager{
   }
   
   final def runSkill(click1 : Click , click2 : Click , click3 : Click , p : Player){
-    if (click2.equals(click1) && click2.equals(click3)){
-      PlayerDataManager.GetClass(p).second_skill.run(1, p);
+    if (click2.equals(click1) && click2.equals(click3) && GetClass(p).level>=11){
+      GetClass(p).level match {
+        case x if 46>x && x>=26 => PlayerDataManager.GetClass(p).second_skill.run(2, p)
+        case y if y>=46 => PlayerDataManager.GetClass(p).second_skill.run(3, p)
+        case z => PlayerDataManager.GetClass(p).second_skill.run(1, p)
+      }
     }
     if (!click2.equals(click1) && !click2.equals(click3)){
-      PlayerDataManager.GetClass(p).first_skill.run(1, p);
+      GetClass(p).level match {
+        case x if 36>x && x>=16 => PlayerDataManager.GetClass(p).first_skill.run(2, p)
+        case y if y>=36 => PlayerDataManager.GetClass(p).first_skill.run(3, p)
+        case z => PlayerDataManager.GetClass(p).first_skill.run(1, p)
+      }
     }
-    if (!click2.equals(click1) && click2.equals(click3)){
-      PlayerDataManager.GetClass(p).third_skill.run(3, p);
+    if (!click2.equals(click1) && click2.equals(click3) && GetClass(p).level>=21){
+      GetClass(p).level match {
+        case x if 56>x && x>=36 => PlayerDataManager.GetClass(p).third_skill.run(2, p)
+        case y if y>=56 => PlayerDataManager.GetClass(p).third_skill.run(3, p)
+        case z => PlayerDataManager.GetClass(p).third_skill.run(1, p)
+      }
     }
-    if (click2.equals(click1) && !click2.equals(click3)){
-      PlayerDataManager.GetClass(p).fourth_skill.run(1, p);
+    if (click2.equals(click1) && !click2.equals(click3) && GetClass(p).level>=31){
+      GetClass(p).level match {
+        case x if 66>x && x>=46 => PlayerDataManager.GetClass(p).fourth_skill.run(2, p)
+        case y if y>=66 => PlayerDataManager.GetClass(p).fourth_skill.run(3, p)
+        case z => PlayerDataManager.GetClass(p).fourth_skill.run(1, p)
+      }
     }
   }
   final def Click(p : Player , click : Click){
