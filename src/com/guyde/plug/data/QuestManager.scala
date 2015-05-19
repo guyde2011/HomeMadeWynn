@@ -86,7 +86,7 @@ object Quests{
     Quests.foreach { name => 
       var status = PlayerDataManager.getQuestStatus(event.getPlayer, name)
       var quest = Quests.getQuest(name)
-      if (status.started==1 || (status.started==0 && PlayerDataManager.GetClass(event.getPlayer).level>=quest.level)){
+      if (status.started!=2){
         var stage = quest.stages(status.getStage())
         if (stage.isInstanceOf[TalkQuestStage] && stage.asInstanceOf[TalkQuestStage].npc.unlocal_name.equals(unlocal)){
           quest_talk = quest_talk:+stage.asInstanceOf[TalkQuestStage]
@@ -98,7 +98,7 @@ object Quests{
     Quests.foreach { name => 
       var status = PlayerDataManager.getQuestStatus(event.getPlayer, name)
       var quest = Quests.getQuest(name)
-      if (status.started==1 || (status.started==0 && PlayerDataManager.GetClass(event.getPlayer).level>=quest.level)){
+      if (status.started!=2){
         var stage = quest.stages(status.getStage())
         if (stage.isInstanceOf[TalkItemQuestStage] && stage.asInstanceOf[TalkItemQuestStage].npc.unlocal_name.equals(unlocal) && event.getPlayer.getInventory.contains(stage.asInstanceOf[TalkItemQuestStage].getStack())){
           quest_talk_item = quest_talk_item:+stage.asInstanceOf[TalkItemQuestStage]
@@ -113,11 +113,10 @@ object Quests{
         new PrinterTask(PlayerDataManager.getQuestStatus(event.getPlayer, quests(0).unlocal_name),printer,i*60-60,finish,quests(0))
       }
     } else if (quest_talk_item.length>0){
-      
-      var printer = quest_talk_item(0).text.createPrinter(event.getPlayer)
-      var finish = quests_item(0).stages.length-1<=PlayerDataManager.getQuestStatus(event.getPlayer, quests_item(0).unlocal_name).getStage()
-      for (i <- 1 to quest_talk_item(0).text.messages.length+1){
-        new PrinterTask(PlayerDataManager.getQuestStatus(event.getPlayer, quests_item(0).unlocal_name),printer,i*60-60,finish,quests_item(0))
+      var printer = quest_talk(0).text.createPrinter(event.getPlayer)
+      var finish = quests(0).stages.length-1<=PlayerDataManager.getQuestStatus(event.getPlayer, quests(0).unlocal_name).getStage()
+      for (i <- 1 to quest_talk(0).text.messages.length+1){
+        new PrinterTask(PlayerDataManager.getQuestStatus(event.getPlayer, quests(0).unlocal_name),printer,i*60-60,finish,quests(0))
       }
     } else{
       val seq = npc.after_speech.toSeq.filter{
@@ -261,7 +260,7 @@ class QuestStatus(val uuid : UUID){
   private val player = Bukkit.getPlayer(uuid)
   
   def getStage() : Int = stage
-  def setStage(stg : Int) { stage = stg}
+  
   def Start(){
     stage = 1
     started = 1
