@@ -27,7 +27,7 @@ class Archer(uuid : UUID) extends GameClass(uuid,Clicks.Left,Material.BOW){
   
   class ArrowSummoner(vec : Vector , player : Player) extends BukkitRunnable(){
     override def run(){
-      var arrow = player.getWorld.spawnArrow(player.getEyeLocation.subtract(0,0.5,0).add(vec), new Vector(0,0,0), 0.6f, 12)
+      var arrow = player.getWorld.spawnArrow(player.getEyeLocation.subtract(0,0.25,0).add(vec), new Vector(0,0,0), 0.6f, 12)
       arrow.setVelocity(vec)
       arrow.setShooter(player.asInstanceOf[ProjectileSource])
       arrow.setMetadata("dmg_multi", new FixedMetadataValue(MainClass.instance,java.lang.Float.valueOf(0.4f)))

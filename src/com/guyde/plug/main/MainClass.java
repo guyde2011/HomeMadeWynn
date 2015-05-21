@@ -3,6 +3,7 @@ package com.guyde.plug.main;
 import java.io.File;
 import java.util.Map.Entry;
 
+import org.bukkit.Bukkit;
 import org.bukkit.World;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandSender;
@@ -37,6 +38,7 @@ public class MainClass extends JavaPlugin{
     public void onEnable() {
     	getServer().getPluginManager().registerEvents(new GuydeEventHandler(), this);
     	instance = this;
+    	world = Bukkit.getWorlds().get(0);
     	new PlayerHealthRegen().run();
     	new PlayerManaRegen().run();
     }
@@ -59,7 +61,6 @@ public class MainClass extends JavaPlugin{
 			}
 		}
 		if (cmd.getName().toLowerCase().equals("getweapon")){
-			world = ((Entity)sender).getWorld();
 			if (sender instanceof Player){
 				String total = args[0];
 				for (int i = 1; i<args.length; i++){
@@ -94,7 +95,6 @@ public class MainClass extends JavaPlugin{
 			}
 		}
 		if (cmd.getName().toLowerCase().equals("readmobs")){
-			world = ((Entity)sender).getWorld();
 			Globals glob = JsePlatform.standardGlobals();
 			File weapons = new File(new File(".").getAbsolutePath() + "/mobs");
 			if (weapons.exists() && weapons.isDirectory()){

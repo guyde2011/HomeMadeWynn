@@ -66,6 +66,14 @@ class Assassin(uuid : UUID) extends GameClass(uuid,Clicks.Right,Material.SHEARS)
   object first_skill extends Skill("Spin Attack",4,4,4){
     def runSkill(level : Int , player : Player){
       DamageManager.damageNearbyWithout(player.getLocation, 3, 3, 3, DamageManager.getDamageFor(player)*1.5, player)
+        player.getWorld.playEffect(player.getLocation.add(1.5,1,0), Effect.CRIT , 0)
+        player.getWorld.playEffect(player.getLocation.add(-1.5,1,0), Effect.CRIT , 0)
+        player.getWorld.playEffect(player.getLocation.add(0.9,1,0.9), Effect.CRIT , 0)
+        player.getWorld.playEffect(player.getLocation.add(-0.9,1,0.9), Effect.CRIT , 0)
+        player.getWorld.playEffect(player.getLocation.add(0.9,1,-0.9), Effect.CRIT , 0)
+        player.getWorld.playEffect(player.getLocation.add(-0.9,1,-0.9), Effect.CRIT , 0)
+        player.getWorld.playEffect(player.getLocation.add(0,1,1.5), Effect.CRIT , 0)
+        player.getWorld.playEffect(player.getLocation.add(0,1,-1.5), Effect.CRIT , 0)
     }
   }
    
@@ -77,7 +85,7 @@ class Assassin(uuid : UUID) extends GameClass(uuid,Clicks.Right,Material.SHEARS)
   
   object fourth_skill extends Skill("Smoke Bomb",10,10,10){
      def runSkill(level : Int , player : Player){
-    
+       player
      }
   }
   

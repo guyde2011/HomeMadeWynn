@@ -1,29 +1,39 @@
 package com.guyde.plug.data
 
 import java.util.UUID
+import scala.collection.JavaConversions.mapAsJavaMap
+import org.bukkit.Bukkit
 import org.bukkit.ChatColor
+import org.bukkit.Material
 import org.bukkit.World
+import org.bukkit.block.Chest
+import org.bukkit.craftbukkit.v1_8_R2.entity.CraftVillager
+import org.bukkit.entity.Entity
 import org.bukkit.entity.Player
-import org.bukkit.util.Vector
-import org.bukkit.entity.Zombie
 import org.bukkit.entity.Villager
 import org.bukkit.entity.Villager.Profession
-import net.minecraft.server.v1_8_R2.NBTTagCompound
-import org.bukkit.craftbukkit.v1_8_R2.entity.CraftVillager
-import com.guyde.plug.utils.TextCreator
-import com.guyde.plug.utils.MCFormat
 import org.bukkit.event.player.PlayerInteractEntityEvent
-import org.bukkit.Bukkit
-import org.bukkit.scheduler.BukkitRunnable
-import scala.collection.JavaConversions._
-import com.guyde.plug.main.MainClass
-import org.bukkit.entity.Entity
 import org.bukkit.inventory.ItemStack
-import org.bukkit.block.Chest
+import org.bukkit.inventory.meta.BookMeta
+import org.bukkit.scheduler.BukkitRunnable
+import org.bukkit.util.Vector
+import com.guyde.plug.main.MainClass
+import com.guyde.plug.utils.TextCreator
+import net.minecraft.server.v1_8_R2.NBTTagCompound
+import org.bukkit.metadata.FixedMetadataValue
+import java.util.regex.Pattern
 
 class QuestIdentifier(val id : Int){
   override def hashCode() : Int = {
     return id
+  }
+}
+
+class RunnableTalk(player : Player,delay : Int) extends BukkitRunnable{
+  player.setMetadata("talking", new FixedMetadataValue(MainClass.instance,true))
+  this.runTaskLater(MainClass.instance, delay)
+  final def run(){
+    player.removeMetadata("talking", MainClass.instance)
   }
 }
 
@@ -76,6 +86,7 @@ object Quests{
   }
   
   final def NpcClicked(event : PlayerInteractEntityEvent){
+    if (event.getPlayer().hasMetadata("talking")) return
     val unlocal = event.getRightClicked.getMetadata(QuestConstants.UNLOCAL_NAME).get(0).asString()
     val npc = getNPC(unlocal)
     event.setCancelled(true)
@@ -112,6 +123,7 @@ object Quests{
       for (i <- 1 to quest_talk(0).text.messages.length+1){
         new PrinterTask(PlayerDataManager.getQuestStatus(event.getPlayer, quests(0).unlocal_name),printer,i*60-60,finish,quests(0))
       }
+      new RunnableTalk(event.getPlayer,quest_talk(0).text.messages.length+1)
     } else if (quest_talk_item.length>0){
       
       var printer = quest_talk_item(0).text.createPrinter(event.getPlayer)
@@ -119,6 +131,7 @@ object Quests{
       for (i <- 1 to quest_talk_item(0).text.messages.length+1){
         new PrinterTask(PlayerDataManager.getQuestStatus(event.getPlayer, quests_item(0).unlocal_name),printer,i*60-60,finish,quests_item(0))
       }
+      new RunnableTalk(event.getPlayer,quest_talk_item(0).text.messages.length+1)
     } else{
       val seq = npc.after_speech.toSeq.filter{
         x => PlayerDataManager.getQuestStatus(event.getPlayer,x._1).started==2
@@ -149,7 +162,7 @@ abstract class AbstractPrinter(){
   def next() : Boolean
 }
 
-class Quest(val level : Int , val name : String , val unlocal_name : String ,val stages : Array[AbstractQuestStage]){
+class Quest(val level : Int , val name : String , val unlocal_name : String , val stages : Array[AbstractQuestStage] , val diff : Int ,val exp : Int,val reward_pos : org.bukkit.util.Vector){
   val identifier : QuestIdentifier = Quests.getNewIdentifier(this) 
   
   override def hashCode() : Int = {
@@ -247,11 +260,80 @@ class QuestNPC(val position : Vector , val name : String , val unlocal_name : St
   }
 }
 
-class QuestBook(){
+class QuestPage(val name : String , val status : Int , val level : Int, val text : String , val diff : Int, val uuid : UUID){
+  def this(quest : Quest , status : QuestStatus){
+    this(quest.name,status.started,quest.level,quest.stages(status.getStage()).book_text,quest.diff,status.uuid)
+  }
+  def owner : Player = Bukkit.getPlayer(uuid)
+  def createPage() : String = {
+    val title = ChatColor.BOLD + name
+    var lv_col = ChatColor.DARK_GREEN
+    if (level>PlayerDataManager.GetClass(owner).level){
+      lv_col = ChatColor.DARK_RED
+    }
+    val lv_min = lv_col + "Lv. min: " + level
+    val dif = Array[String]("Easy","Medium","Hard")
+    val difficulty = ChatColor.BLACK + "Difficulty: " + dif(diff)
+    val st_col = Array[ChatColor](ChatColor.RED,ChatColor.GOLD,ChatColor.GREEN)
+    val st = Array[String]("Not Started","Started","Finished")
+    val stat = ChatColor.BLACK + "Status: " + st_col(status) + st(status)
+    val quest_desc = ChatColor.BLACK + text
+    return title + "\n\n" + lv_min + "\n" + difficulty + "\n" + stat + "\n\n" + quest_desc
+  }
   
 }
 
-class QuestPage(){
+class QuestBook(val uuid : UUID){
+  def this(player : Player){this(player.getUniqueId)}
+  def owner : Player = Bukkit.getPlayer(uuid)
+  def statuses = PlayerDataManager.getQuestStatus(owner)
+  
+
+  
+  def createBook() : ItemStack ={
+    var stack = new ItemStack(Material.WRITTEN_BOOK)
+    var meta = stack.getItemMeta.asInstanceOf[BookMeta]
+    meta.setDisplayName(ChatColor.AQUA + "Quest Book")
+    meta.setAuthor(ChatColor.DARK_RED + "King Of Ragni")
+    createPages.foreach { page => meta.addPage(page.createPage) }
+    stack.setItemMeta(meta)
+    return stack
+  }
+  
+  private def createPages() : Array[QuestPage] = {
+    var high_lvl = Array[QuestPage]()
+    var not_started = Array[QuestPage]()
+    var started = Array[QuestPage]()
+    var finished = Array[QuestPage]()
+    var known = Array[String]()
+    statuses.foreach{status =>
+      if (!status._1.equals("dummy_quest")){
+        val quest = Quests.getQuest(status._1)  
+        known = known :+ quest.unlocal_name
+        if (quest.level>PlayerDataManager.GetClass(owner).level){
+          high_lvl = high_lvl :+ new QuestPage(quest,status._2)
+        } else {
+          status._2.started match {
+            case 0 => not_started = not_started :+ new QuestPage(quest,status._2)
+            case 1 => started = started :+ new QuestPage(quest,status._2)
+            case 2 => finished = finished :+ new QuestPage(quest.name,2,quest.level,"You've finished this quest",quest.diff,uuid)
+          }
+        }
+      }
+    }
+    Quests.foreach { name =>
+      if(!known.contains(name)){
+        val quest = Quests.getQuest(name)
+        if (quest.level>PlayerDataManager.GetClass(owner).level){
+          high_lvl = high_lvl :+ new QuestPage(quest.name,0,quest.level,quest.stages(0).book_text,quest.diff,uuid)
+        } else {
+          not_started = not_started :+ new QuestPage(quest.name,0,quest.level,quest.stages(0).book_text,quest.diff,uuid)
+        }
+      }
+    }
+    
+    return Array[QuestPage]() ++ started ++ not_started ++ high_lvl ++ finished
+  }
   
 }
 
@@ -274,6 +356,20 @@ class QuestStatus(val uuid : UUID){
   def Finish(quest : Quest){
     started = 2
     stage = stage+1
+    val xp = IdentifiesHelper.getXP(player, quest.exp, quest.exp+1)
+    player.sendMessage(ChatColor.GRAY + "[+" + xp + " XP]")
+    PlayerDataManager.GetClass(player).addEXP(xp)
+    if (quest.reward_pos!=null){
+      val block = MainClass.world.getBlockAt(quest.reward_pos.toLocation(MainClass.world))
+      val chest = block.getState.asInstanceOf[Chest]
+      chest.getInventory.getContents.foreach { a => 
+        if (a!=null && a.getType!=Material.AIR) {
+          val p = Pattern.compile("§.")
+          player.sendMessage(ChatColor.GRAY + "[+" + a.getAmount + " " + p.matcher(a.getItemMeta.getDisplayName).replaceAll("") + "]")
+          player.getInventory.addItem(a)
+        } 
+      }
+    }
   }
   
 }

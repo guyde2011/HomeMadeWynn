@@ -40,6 +40,7 @@ import com.guyde.plug.data.DropRates;
 import com.guyde.plug.data.IdentifiesHelper;
 import com.guyde.plug.data.MobDrop;
 import com.guyde.plug.data.PlayerDataManager;
+import com.guyde.plug.data.QuestBook;
 import com.guyde.plug.data.QuestConstants;
 import com.guyde.plug.data.Quests;
 import com.guyde.plug.utils.CustomNameTracker;
@@ -234,6 +235,12 @@ public class GuydeEventHandler implements Listener{
 			}
 		}
 		if (event.getAction()==Action.RIGHT_CLICK_AIR || event.getAction()==Action.RIGHT_CLICK_BLOCK){
+			if (event.getItem().getType()==Material.WRITTEN_BOOK){
+				ItemStack stack = new QuestBook(event.getPlayer()).createBook();
+				event.getPlayer().setItemInHand(stack);
+				event.getPlayer().updateInventory();
+				return;
+			}
 			if (event.getPlayer().getItemInHand()!=null && event.getPlayer().getItemInHand().getType()==PlayerDataManager.GetClass(event.getPlayer()).getWeapon()){
 				PlayerDataManager.Click(event.getPlayer(), Clicks.Right());	
 				if (PlayerDataManager.GetClass(event.getPlayer()).name().equals("Archer") && event.getPlayer().getItemInHand()!=null && event.getPlayer().getItemInHand().getType()==Material.BOW){

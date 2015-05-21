@@ -215,6 +215,12 @@ class RegisterQuest{
     val name = table.getString("name")
     val unlocal_name = table.getString("unlocal_name")
     val level = table.getInt("lvl")
+    val exp = table.getInt("exp")
+    var pos : Vector = null
+    if (obj.asInstanceOf[LuaTable].get("rewards")!=LuaValue.NIL){
+      pos = table.getVector("rewards")
+    }
+    val difficulty = table.getInt("difficulty")
     val stages = table.getTable("stages")
     var quest_stages = Array[AbstractQuestStage]()
     stages.foreachInt{e =>
@@ -247,7 +253,7 @@ class RegisterQuest{
         case "region" =>{}
       }
     }
-    val quest = new Quest(level,name,unlocal_name,quest_stages)
+    val quest = new Quest(level,name,unlocal_name,quest_stages,difficulty,exp,pos)
     return LuaValue.NIL
   }
 
