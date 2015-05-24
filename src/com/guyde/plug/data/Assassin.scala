@@ -1,21 +1,23 @@
 package com.guyde.plug.data
 
-import org.bukkit.entity.Player
-import org.bukkit.scheduler.BukkitRunnable
-import com.guyde.plug.main.MainClass
-import org.bukkit.entity.Arrow
 import java.util.UUID
-import java.util.Random
-import org.bukkit.Material
-import org.bukkit.projectiles.ProjectileSource
-import org.bukkit.metadata.FixedMetadataValue
 import org.bukkit.Effect
-import org.bukkit.util.Vector
-import org.bukkit.potion.PotionEffectType
-import org.bukkit.potion.PotionEffect
-import org.bukkit.Location
+import org.bukkit.Material
+import org.bukkit.entity.Egg
 import org.bukkit.entity.Entity
 import org.bukkit.entity.LivingEntity
+import org.bukkit.entity.Player
+import org.bukkit.potion.PotionEffect
+import org.bukkit.potion.PotionEffectType
+import org.bukkit.scheduler.BukkitRunnable
+import com.guyde.plug.main.MainClass
+import com.guyde.plug.utils.BasicParticle
+import com.guyde.plug.utils.CircleParticleYDelayed
+import com.guyde.plug.utils.ListenedProjectile
+import com.guyde.plug.utils.DemaEntity
+import com.guyde.plug.utils.RandomParticle
+import org.bukkit.entity.EntityType
+
 class Assassin(uuid : UUID) extends GameClass(uuid,Clicks.Right,Material.SHEARS){
   var name = "Assassin"
   var chatname = "As"
@@ -66,14 +68,18 @@ class Assassin(uuid : UUID) extends GameClass(uuid,Clicks.Right,Material.SHEARS)
   object first_skill extends Skill("Spin Attack",4,4,4){
     def runSkill(level : Int , player : Player){
       DamageManager.damageNearbyWithout(player.getLocation, 3, 3, 3, DamageManager.getDamageFor(player)*1.5, player)
-        player.getWorld.playEffect(player.getLocation.add(1.5,1,0), Effect.CRIT , 0)
-        player.getWorld.playEffect(player.getLocation.add(-1.5,1,0), Effect.CRIT , 0)
-        player.getWorld.playEffect(player.getLocation.add(0.9,1,0.9), Effect.CRIT , 0)
-        player.getWorld.playEffect(player.getLocation.add(-0.9,1,0.9), Effect.CRIT , 0)
-        player.getWorld.playEffect(player.getLocation.add(0.9,1,-0.9), Effect.CRIT , 0)
-        player.getWorld.playEffect(player.getLocation.add(-0.9,1,-0.9), Effect.CRIT , 0)
-        player.getWorld.playEffect(player.getLocation.add(0,1,1.5), Effect.CRIT , 0)
-        player.getWorld.playEffect(player.getLocation.add(0,1,-1.5), Effect.CRIT , 0)
+      val basic = new BasicParticle(player.getEyeLocation.clone,Effect.CRIT,0)
+      val basic1 = new BasicParticle(player.getEyeLocation.clone.add(0,0.25,0),Effect.CRIT,0)
+      val basic2 = new BasicParticle(player.getEyeLocation.clone.add(0,-0.25,0),Effect.CRIT,0)
+      new CircleParticleYDelayed(basic,2.5d,1,10).spawn()
+      new CircleParticleYDelayed(basic,2.5d,1,0).spawn()
+      new CircleParticleYDelayed(basic,2.5d,1,5).spawn()
+      new CircleParticleYDelayed(basic1,2.5d,1,10).spawn()
+      new CircleParticleYDelayed(basic1,2.5d,1,0).spawn()
+      new CircleParticleYDelayed(basic1,2.5d,1,5).spawn()
+      new CircleParticleYDelayed(basic2,2.5d,1,10).spawn()
+      new CircleParticleYDelayed(basic2,2.5d,1,0).spawn()
+      new CircleParticleYDelayed(basic2,2.5d,1,5).spawn()
     }
   }
    
@@ -83,17 +89,42 @@ class Assassin(uuid : UUID) extends GameClass(uuid,Clicks.Right,Material.SHEARS)
     }
   }
   
-  object fourth_skill extends Skill("Smoke Bomb",10,10,10){
-     def runSkill(level : Int , player : Player){
-       player
-     }
+  object fourth_skill extends Skill("Smoke Bomb",7,7,7){
+    def runSkill(level : Int , player : Player){
+      level match {
+        case 1 => new SmokeBombEgg(player,0,false).spawn
+        case 2 => new SmokeBombEgg(player,0,true).spawn
+        case 3 => {new SmokeBombEgg(player,0,true).spawn;new SmokeBombEgg(player,25,true).spawn;new SmokeBombEgg(player,-25,true).spawn}
+      }
+    }
   }
   
 
   
 }
 
-class SmokeBombDamage(){
+class SmokeBombEgg(player : Player, offset : Float, slow : Boolean) extends ListenedProjectile(player,offset,1,EntityType.EGG){
+  val updated = true
+  def onUpdate(){
+    
+  }
+  
+  def onHitting(){
+    val ent = new DemaEntity(true,proj.getLocation)
+    ent.onUpdate { 
+      a => 
+      if (a.timeAlive>120){
+        a.kill
+      } else {
+        new RandomParticle(ent.getLocation,Effect.SMOKE,0,1.5d).spawn
+        if (slow) DamageManager.getNearbyWithout(ent.getLocation, 1.5d, 1.5d, 1.5d, player).forall { x => x.addPotionEffect(new PotionEffect(PotionEffectType.SLOW,1,1)) }
+          
+        if (a.timeAlive%10==0){
+          DamageManager.damageNearbyWithout(ent.getLocation, 1.5d, 1.5d, 1.5D, DamageManager.getDamageFor(player)*0.6, player)
+        }
+      }
+    }
+  }
   
 }
 

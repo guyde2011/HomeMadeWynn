@@ -22,7 +22,7 @@ import com.guyde.plug.utils.TextCreator
 import net.minecraft.server.v1_8_R2.NBTTagCompound
 import org.bukkit.metadata.FixedMetadataValue
 import java.util.regex.Pattern
-
+import com.guyde.plug.utils.Conversions._
 class QuestIdentifier(val id : Int){
   override def hashCode() : Int = {
     return id
@@ -97,7 +97,7 @@ object Quests{
     Quests.foreach { name => 
       var status = PlayerDataManager.getQuestStatus(event.getPlayer, name)
       var quest = Quests.getQuest(name)
-      if (status.started==1 || (status.started==0 && PlayerDataManager.GetClass(event.getPlayer).level>=quest.level)){
+      if (status.started==1 || (status.started==0 && (event.getPlayer).level>=quest.level)){
         var stage = quest.stages(status.getStage())
         if (stage.isInstanceOf[TalkQuestStage] && stage.asInstanceOf[TalkQuestStage].npc.unlocal_name.equals(unlocal)){
           quest_talk = quest_talk:+stage.asInstanceOf[TalkQuestStage]
@@ -109,7 +109,7 @@ object Quests{
     Quests.foreach { name => 
       var status = PlayerDataManager.getQuestStatus(event.getPlayer, name)
       var quest = Quests.getQuest(name)
-      if (status.started==1 || (status.started==0 && PlayerDataManager.GetClass(event.getPlayer).level>=quest.level)){
+      if (status.started==1 || (status.started==0 && (event.getPlayer).level>=quest.level)){
         var stage = quest.stages(status.getStage())
         if (stage.isInstanceOf[TalkItemQuestStage] && stage.asInstanceOf[TalkItemQuestStage].npc.unlocal_name.equals(unlocal) && event.getPlayer.getInventory.contains(stage.asInstanceOf[TalkItemQuestStage].getStack())){
           quest_talk_item = quest_talk_item:+stage.asInstanceOf[TalkItemQuestStage]
@@ -268,7 +268,7 @@ class QuestPage(val name : String , val status : Int , val level : Int, val text
   def createPage() : String = {
     val title = ChatColor.BOLD + name
     var lv_col = ChatColor.DARK_GREEN
-    if (level>PlayerDataManager.GetClass(owner).level){
+    if (level>(owner).level){
       lv_col = ChatColor.DARK_RED
     }
     val lv_min = lv_col + "Lv. min: " + level
@@ -310,7 +310,7 @@ class QuestBook(val uuid : UUID){
       if (!status._1.equals("dummy_quest")){
         val quest = Quests.getQuest(status._1)  
         known = known :+ quest.unlocal_name
-        if (quest.level>PlayerDataManager.GetClass(owner).level){
+        if (quest.level>(owner).level){
           high_lvl = high_lvl :+ new QuestPage(quest,status._2)
         } else {
           status._2.started match {
@@ -324,7 +324,7 @@ class QuestBook(val uuid : UUID){
     Quests.foreach { name =>
       if(!known.contains(name)){
         val quest = Quests.getQuest(name)
-        if (quest.level>PlayerDataManager.GetClass(owner).level){
+        if (quest.level>(owner).level){
           high_lvl = high_lvl :+ new QuestPage(quest.name,0,quest.level,quest.stages(0).book_text,quest.diff,uuid)
         } else {
           not_started = not_started :+ new QuestPage(quest.name,0,quest.level,quest.stages(0).book_text,quest.diff,uuid)
@@ -358,7 +358,7 @@ class QuestStatus(val uuid : UUID){
     stage = stage+1
     val xp = IdentifiesHelper.getXP(player, quest.exp, quest.exp+1)
     player.sendMessage(ChatColor.GRAY + "[+" + xp + " XP]")
-    PlayerDataManager.GetClass(player).addEXP(xp)
+    player.addEXP(xp)
     if (quest.reward_pos!=null){
       val block = MainClass.world.getBlockAt(quest.reward_pos.toLocation(MainClass.world))
       val chest = block.getState.asInstanceOf[Chest]

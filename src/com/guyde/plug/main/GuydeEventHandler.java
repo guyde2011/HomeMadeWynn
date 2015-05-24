@@ -6,9 +6,16 @@ import java.util.List;
 import java.util.Random;
 
 import net.md_5.bungee.api.ChatColor;
+import net.minecraft.server.v1_8_R2.ChatComponentText;
+import net.minecraft.server.v1_8_R2.EntityHuman;
+import net.minecraft.server.v1_8_R2.IChatBaseComponent;
+import net.minecraft.server.v1_8_R2.IMerchant;
+import net.minecraft.server.v1_8_R2.MerchantRecipe;
+import net.minecraft.server.v1_8_R2.MerchantRecipeList;
 
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
+import org.bukkit.craftbukkit.v1_8_R2.entity.CraftPlayer;
 import org.bukkit.entity.Arrow;
 import org.bukkit.entity.Creature;
 import org.bukkit.entity.Entity;
@@ -23,6 +30,7 @@ import org.bukkit.event.block.Action;
 import org.bukkit.event.entity.EntityDamageByEntityEvent;
 import org.bukkit.event.entity.EntityDeathEvent;
 import org.bukkit.event.entity.EntityTargetEvent;
+import org.bukkit.event.entity.ProjectileHitEvent;
 import org.bukkit.event.player.AsyncPlayerChatEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
@@ -43,7 +51,9 @@ import com.guyde.plug.data.PlayerDataManager;
 import com.guyde.plug.data.QuestBook;
 import com.guyde.plug.data.QuestConstants;
 import com.guyde.plug.data.Quests;
+import com.guyde.plug.data.Trades;
 import com.guyde.plug.utils.CustomNameTracker;
+import com.guyde.plug.utils.ListenedProjectile;
 import com.guyde.plug.utils.TextCreator;
 
 
@@ -139,7 +149,7 @@ public class GuydeEventHandler implements Listener{
 			}
 			event.setCancelled(true); return;
 		}
-		if (event.getEntity().hasMetadata(QuestConstants.QUEST_NPC())){
+		if (event.getEntity().hasMetadata(QuestConstants.QUEST_NPC()) || event.getEntity().hasMetadata("merchant") ){
 			event.setCancelled(true); return;
 		}
 		Entity damager = event.getDamager();
@@ -222,6 +232,59 @@ public class GuydeEventHandler implements Listener{
 	public void onPlayerEntityClick(org.bukkit.event.player.PlayerInteractEntityEvent event){
 		if (event.getRightClicked().hasMetadata(QuestConstants.QUEST_NPC()) && event.getRightClicked().getMetadata(QuestConstants.QUEST_NPC()).get(0).asBoolean()){
 			Quests.NpcClicked(event);
+		}
+		if (event.getRightClicked().hasMetadata("trades")){
+			Trades trades = (Trades)event.getRightClicked().getMetadata("trades").get(0).value();
+			MerchantRecipeList list = trades.getRecipeList();
+			event.setCancelled(true);
+			((CraftPlayer)event.getPlayer()).getHandle().openTrade(new IMerchant(){
+
+				@Override
+				public void a(MerchantRecipe arg0) {
+					// TODO Auto-generated method stub
+					
+				}
+
+				@Override
+				public void a_(EntityHuman arg0) {
+					// TODO Auto-generated method stub
+					
+				}
+
+				@Override
+				public void a_(net.minecraft.server.v1_8_R2.ItemStack arg0) {
+					// TODO Auto-generated method stub
+					
+				}
+
+				@Override
+				public MerchantRecipeList getOffers(EntityHuman arg0) {
+					// TODO Auto-generated method stub
+					return list;
+				}
+
+				@Override
+				public IChatBaseComponent getScoreboardDisplayName() {
+					// TODO Auto-generated method stub
+					return new ChatComponentText(event.getRightClicked().getMetadata("name").get(0).asString());
+				}
+
+				@Override
+				public EntityHuman v_() {
+					// TODO Auto-generated method stub
+					return ((CraftPlayer)event.getPlayer()).getHandle();
+				}
+				
+			});
+		}
+	}
+	
+	@EventHandler
+	public void onProjectileHit(ProjectileHitEvent event){
+		if(event.getEntity().hasMetadata("listened")){
+			ListenedProjectile ent = (ListenedProjectile) event.getEntity().getMetadata("listened").get(0).value();
+			ent.onHit();
+			ent.proj().remove();
 		}
 	}
 	@EventHandler(priority=EventPriority.HIGH)

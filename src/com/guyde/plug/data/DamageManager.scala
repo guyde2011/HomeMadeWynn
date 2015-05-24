@@ -17,7 +17,7 @@ import org.bukkit.scheduler.BukkitRunnable
 import org.bukkit.Bukkit
 import java.util.Collection
 import com.guyde.plug.main.MainClass
-
+import com.guyde.plug.utils.Conversions._
 
 class WynnItem(name : String , lore : Array[String] , item : Material , meta : Short , compound : NBTTagCompound){
   def this(name : String , lore : Array[String] , item : Material , meta : Short) = { 
@@ -378,6 +378,13 @@ object DamageManager{
     var damage = 0
     var multi = 1d
     val inv = player.getInventory
+    if (!(inv.getItemInHand!=null && inv.getItemInHand.getType!=Material.AIR && inv.getItemInHand.getType==player.getWeapon)) return 0
+    
+    val stack = CraftItemStack.asNMSCopy(inv.getItemInHand)
+    val tag = stack.getTag
+    if (tag.hasKey("lvl") && tag.getInt("lvl")>player.level){
+      return 0
+    }
     inv.getArmorContents.toList.foreach { armor =>
       if (armor!=null && armor.getType!=Material.AIR){
         val stack = CraftItemStack.asNMSCopy(armor)
@@ -386,16 +393,13 @@ object DamageManager{
           multi = multi + (multi * (tag.getCompound("Ids").getInt("dmg")/100d))
         }
       }
+    }  
+    
+    if (tag!=null && tag.hasKey("Ids") && tag.getCompound("Ids").hasKey("dmg")){
+      multi = multi + (multi * (tag.getCompound("Ids").getInt("dmg")/100d))
     }
-    if (inv.getItemInHand!=null && inv.getItemInHand.getType!=Material.AIR){    
-      val stack = CraftItemStack.asNMSCopy(inv.getItemInHand)
-      val tag = stack.getTag
-      if (tag!=null && tag.hasKey("Ids") && tag.getCompound("Ids").hasKey("dmg")){
-        multi = multi + (multi * (tag.getCompound("Ids").getInt("dmg")/100d))
-      }
-      if (tag!=null && tag.hasKey("min_dmg")){
-        damage = new Random().nextInt(tag.getInt("max_dmg")-tag.getInt("min_dmg"))+tag.getInt("min_dmg")
-      }
+    if (tag!=null && tag.hasKey("min_dmg")){
+      damage = new Random().nextInt(tag.getInt("max_dmg")-tag.getInt("min_dmg"))+tag.getInt("min_dmg")
     }
     return (damage * multi).toInt
   }
@@ -456,6 +460,15 @@ object DamageManager{
         ent.asInstanceOf[LivingEntity].setVelocity(move)
       } 
     }
+  }
+  
+  final def getNearbyWithout(loc : Location , x : Double , y : Double , z : Double, out : Entity) : Array[LivingEntity] = {
+    var arr = Array[LivingEntity]()
+    loc.getWorld.getNearbyEntities(loc,x,y,z).foreach { ent => 
+      if (!ent.getUniqueId.equals(out.getUniqueId) && ent.isInstanceOf[LivingEntity])
+        arr = arr :+ ent.asInstanceOf[LivingEntity]
+    }
+    return arr
   }
   
 }

@@ -1,11 +1,10 @@
 package com.guyde.plug.data;
 
 import java.io.File
+import com.guyde.plug.utils.Conversions._
 import java.util.Random
 import java.util.UUID
-
 import scala.collection.JavaConversions._
-
 import org.bukkit.Bukkit
 import org.bukkit.ChatColor
 import org.bukkit.Material
@@ -18,12 +17,11 @@ import org.bukkit.inventory.Inventory
 import org.bukkit.inventory.ItemStack
 import org.bukkit.inventory.PlayerInventory
 import org.bukkit.scheduler.BukkitRunnable
-
 import com.guyde.plug.main.MainClass
-
 import net.minecraft.server.v1_8_R2.IChatBaseComponent.ChatSerializer
 import net.minecraft.server.v1_8_R2.NBTTagCompound
 import net.minecraft.server.v1_8_R2.PacketPlayOutChat
+import org.bukkit.Sound
 class PlayerData(uuid : UUID){
   object Classes{
     
@@ -144,9 +142,11 @@ abstract class Skill(name : String , hunger1 : Int , hunger2 : Int , hunger3 : I
   def run(level : Int , player : Player){
     if (hunger(level-1)>player.getFoodLevel){
       TextHelper.aboveChatMessage(ChatColor.DARK_RED + "You don't have enough hunger to cast this spell!", player)
+      PlayerDataManager.failSound(player)
     } else {
       TextHelper.aboveChatMessage(ChatColor.GOLD + name + " spell cast " + ChatColor.GRAY + "-" + hunger(level-1) + " Hunger!",player)
       player.setFoodLevel(player.getFoodLevel-hunger(level-1))
+      PlayerDataManager.skillSound(player)
       runSkill(level,player)
     }
   }
@@ -271,6 +271,11 @@ abstract class GameClass(uuid : UUID, click : Click, weapon : Material){
   def First_Play(){
     level = 1;
     xp = 0
+    val inv = owner.getInventory
+    inv.clear()
+    inv.setArmorContents(Array[ItemStack](null,null,null,null))
+    inv.setItem(8, PlayerDataManager.SoulPoint(15))
+    inv.setItem(7, new QuestBook(uuid).createBook())
   }
   
   def JoinMessage(server : String) : String = {
@@ -301,6 +306,11 @@ object Clicks{
   final def Left = new Click(System.currentTimeMillis(),1,"Left");
 }
 object PlayerDataManager{
+  private val soul_point = new ItemStack(Material.NETHER_STAR);
+  private val meta = soul_point.getItemMeta()
+  meta.setDisplayName("§bSoul Point")
+  soul_point.setItemMeta(meta)
+  def SoulPoint(amount : Int) : ItemStack = {val sp1 = soul_point.clone(); sp1.setAmount(amount); return sp1} 
   private var classFor : Map[UUID,GameClass] = Map[UUID,GameClass]();
   private var clickFor : Map[UUID,Array[Click]] = Map[UUID,Array[Click]]();
   private var questStatus : scala.collection.mutable.Map[UUID,Map[String,QuestStatus]] = scala.collection.mutable.Map[UUID,Map[String,QuestStatus]]()
@@ -326,8 +336,13 @@ object PlayerDataManager{
     }
     if (getPlayerFile(p).contains(c.name)){
       c.read(getPlayerFile(p), c.name)
+      classFor = classFor + (p.getUniqueId-> c)
+    } else {
+      classFor = classFor + (p.getUniqueId-> c)
+      c.First_Play()
+      classFor = classFor + (p.getUniqueId-> c)
     }
-    classFor = classFor + (p.getUniqueId-> c)
+
   }
   
   final def getQuestStatus(player : Player , str : String) : QuestStatus = {
@@ -365,41 +380,72 @@ object PlayerDataManager{
     return clickFor(p.getUniqueId)
   }
   
+  final def skillSound(p : Player){
+    p.playSound(p.getLocation, Sound.ORB_PICKUP, 0.5f, 0.5f)
+  }
+  
+  final def failSound(p : Player){
+    p.playSound(p.getLocation, Sound.ANVIL_LAND, 1f, 1f)
+  }
+  
+  final def clickR(p : Player){
+    p.playSound(p.getLocation, Sound.CLICK, 0.5f, 1)
+  }
+  
+  final def clickL(p : Player){
+    p.playSound(p.getLocation, Sound.CLICK, 1, 1)
+  }
+  
   final def runSkill(click1 : Click , click2 : Click , click3 : Click , p : Player){
+    
     if (click2.equals(click1) && click2.equals(click3) && GetClass(p).level>=11){
       GetClass(p).level match {
-        case x if 46>x && x>=26 => PlayerDataManager.GetClass(p).second_skill.run(2, p)
-        case y if y>=46 => PlayerDataManager.GetClass(p).second_skill.run(3, p)
-        case z => PlayerDataManager.GetClass(p).second_skill.run(1, p)
+        case x if 46>x && x>=26 => p.second_skill.run(2, p)
+        case y if y>=46 => p.second_skill.run(3, p)
+        case z => p.second_skill.run(1, p) 
       }
     }
     if (!click2.equals(click1) && !click2.equals(click3)){
       GetClass(p).level match {
-        case x if 36>x && x>=16 => PlayerDataManager.GetClass(p).first_skill.run(2, p)
-        case y if y>=36 => PlayerDataManager.GetClass(p).first_skill.run(3, p)
-        case z => PlayerDataManager.GetClass(p).first_skill.run(1, p)
+        case x if 36>x && x>=16 => p.first_skill.run(2, p); return
+        case y if y>=36 => p.first_skill.run(3, p); return
+        case z => p.first_skill.run(1, p); return
       }
     }
     if (!click2.equals(click1) && click2.equals(click3) && GetClass(p).level>=21){
       GetClass(p).level match {
-        case x if 56>x && x>=36 => PlayerDataManager.GetClass(p).third_skill.run(2, p)
-        case y if y>=56 => PlayerDataManager.GetClass(p).third_skill.run(3, p)
-        case z => PlayerDataManager.GetClass(p).third_skill.run(1, p)
+        case x if 56>x && x>=36 => p.third_skill.run(2, p); return
+        case y if y>=56 => p.third_skill.run(3, p); return
+        case z => p.third_skill.run(1, p); return
       }
     }
     if (click2.equals(click1) && !click2.equals(click3) && GetClass(p).level>=31){
       GetClass(p).level match {
-        case x if 66>x && x>=46 => PlayerDataManager.GetClass(p).fourth_skill.run(2, p)
-        case y if y>=66 => PlayerDataManager.GetClass(p).fourth_skill.run(3, p)
-        case z => PlayerDataManager.GetClass(p).fourth_skill.run(1, p)
+        case x if 66>x && x>=46 => p.fourth_skill.run(2, p); return
+        case y if y>=66 => p.fourth_skill.run(3, p); return
+        case z => p.fourth_skill.run(1, p); return
       }
     }
   }
   final def Click(p : Player , click : Click){
+    val player = p
+    val inv = player.getInventory
+    if (!(inv.getItemInHand!=null && inv.getItemInHand.getType!=Material.AIR && inv.getItemInHand.getType==player.getWeapon)) return
+    
+    val stack = CraftItemStack.asNMSCopy(inv.getItemInHand)
+    val tag = stack.getTag
+    if (tag.hasKey("lvl") && tag.getInt("lvl")>player.level){
+      return
+    }
     if (!clickFor.keySet.contains(p.getUniqueId)){
       setClicks(p,null)
     }
     var clicks = clickFor(p.getUniqueId)
+    if (GetClass(p).getClick().equals(click)){
+      clickR(p)
+    } else if(clicks!=null && clicks.length!=0 && clicks(clicks.length-1).Time-click.Time<=1500){
+      clickL(p)
+    }
     if (clicks==null){
       if (!GetClass(p).getClick().equals(click)) return
       setClicks(p,Array[Click](click))

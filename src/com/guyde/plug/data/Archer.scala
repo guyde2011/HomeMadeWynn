@@ -3,6 +3,7 @@ package com.guyde.plug.data
 import org.bukkit.entity.Player
 import org.bukkit.scheduler.BukkitRunnable
 import com.guyde.plug.main.MainClass
+import com.guyde.plug.utils.Conversions._
 import org.bukkit.entity.Arrow
 import java.util.UUID
 import java.util.Random
@@ -109,33 +110,38 @@ class Archer(uuid : UUID) extends GameClass(uuid,Clicks.Left,Material.BOW){
      def runSkill(level : Int , player : Player){
        var arrow1 = player.getWorld.spawnArrow(player.getEyeLocation.add(0,0,1), new Vector(0,-1,0), 0.6f, 12)
        arrow1.setShooter(player)
-       new ArrowShieldTracker(arrow1,player,new Vector(0,0,1)).runTaskLater(MainClass.instance, 1)
+       new ArrowShieldTracker(arrow1,player,new Vector(0,0,1),System.currentTimeMillis()).runTaskLater(MainClass.instance, 1)
        var arrow2 = player.getWorld.spawnArrow(player.getEyeLocation.add(0,0,-1), new Vector(0,-1,0), 0.6f, 12)
        arrow2.setShooter(player)
-       new ArrowShieldTracker(arrow2,player,new Vector(0,0,-1)).runTaskLater(MainClass.instance, 1)
+       new ArrowShieldTracker(arrow2,player,new Vector(0,0,-1),System.currentTimeMillis()).runTaskLater(MainClass.instance, 1)
        var arrow3 = player.getWorld.spawnArrow(player.getEyeLocation.add(0.7,0,0.7), new Vector(0,-1,0), 0.6f, 12)
        arrow3.setShooter(player)
-       new ArrowShieldTracker(arrow3,player,new Vector(0.7,0,0.7)).runTaskLater(MainClass.instance, 1)
+       new ArrowShieldTracker(arrow3,player,new Vector(0.7,0,0.7),System.currentTimeMillis()).runTaskLater(MainClass.instance, 1)
        var arrow4 = player.getWorld.spawnArrow(player.getEyeLocation.add(0.7,0,-0.7), new Vector(0,-1,0), 0.6f, 12)
        arrow4.setShooter(player)
-       new ArrowShieldTracker(arrow4,player,new Vector(0.7,0,-0.7)).runTaskLater(MainClass.instance, 1)
+       new ArrowShieldTracker(arrow4,player,new Vector(0.7,0,-0.7),System.currentTimeMillis()).runTaskLater(MainClass.instance, 1)
        var arrow5 = player.getWorld.spawnArrow(player.getEyeLocation.add(-0.7,0,0.7), new Vector(0,-1,0), 0.6f, 12)
        arrow5.setShooter(player)
-       new ArrowShieldTracker(arrow5,player,new Vector(-0.7,0,0.7)).runTaskLater(MainClass.instance, 1)
+       new ArrowShieldTracker(arrow5,player,new Vector(-0.7,0,0.7),System.currentTimeMillis()).runTaskLater(MainClass.instance, 1)
        var arrow6 = player.getWorld.spawnArrow(player.getEyeLocation.add(-0.7,0,-0.7), new Vector(0,-1,0), 0.6f, 12)
        arrow6.setShooter(player)
-       new ArrowShieldTracker(arrow6,player,new Vector(-0.7,0,-0.7)).runTaskLater(MainClass.instance, 1)
+       new ArrowShieldTracker(arrow6,player,new Vector(-0.7,0,-0.7),System.currentTimeMillis()).runTaskLater(MainClass.instance, 1)
        var arrow7 = player.getWorld.spawnArrow(player.getEyeLocation.add(1,0,0), new Vector(0,-1,0), 0.6f, 12)
        arrow7.setShooter(player)
-       new ArrowShieldTracker(arrow7,player,new Vector(1,0,0)).runTaskLater(MainClass.instance, 1)
+       new ArrowShieldTracker(arrow7,player,new Vector(1,0,0),System.currentTimeMillis()).runTaskLater(MainClass.instance, 1)
        var arrow8 = player.getWorld.spawnArrow(player.getEyeLocation.add(-1,0,0), new Vector(0,-1,0), 0.6f, 12)
        arrow8.setShooter(player)
-       new ArrowShieldTracker(arrow8,player,new Vector(-1,0,0)).runTaskLater(MainClass.instance, 1)
+       new ArrowShieldTracker(arrow8,player,new Vector(-1,0,0),System.currentTimeMillis()).runTaskLater(MainClass.instance, 1)
      }
   }
   
-  class ArrowShieldTracker(arrow : Arrow , player : Player , offset : Vector) extends BukkitRunnable{
+  class ArrowShieldTracker(arrow : Arrow , player : Player , offset : Vector,time : Long) extends BukkitRunnable{
     override def run(){
+      arrow.setKnockbackStrength(3)
+      if (System.currentTimeMillis()-time>=60000){
+        arrow.remove()
+        return
+      }
         var loc = arrow.getLocation.clone
         arrow.setVelocity(new Vector(0,-0.1,0))
      //  arrow.getWorld.playEffect(loc, Effect.FIREWORKS_SPARK, 5)
@@ -143,11 +149,11 @@ class Archer(uuid : UUID) extends GameClass(uuid,Clicks.Left,Material.BOW){
         if (arrow.isOnGround()){
           var nArrow = arrow.getWorld.spawnArrow(player.getEyeLocation.add(offset), new Vector(0,-1,0), 0.6f, 12)
           nArrow.setShooter(player)
-          new ArrowShieldTracker(nArrow,player,offset).runTaskLater(MainClass.instance, 25)
+          new ArrowShieldTracker(nArrow,player,offset,time).runTaskLater(MainClass.instance, 25)
           arrow.remove()
           
         } else {
-            new ArrowShieldTracker(arrow,player,offset).runTaskLater(MainClass.instance, 1)
+            new ArrowShieldTracker(arrow,player,offset,time).runTaskLater(MainClass.instance, 1)
         }
     }
   }

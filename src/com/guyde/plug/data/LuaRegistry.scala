@@ -1,15 +1,14 @@
 package com.guyde.plug.data;
 
 import scala.util.control.Breaks._
-
 import org.bukkit.Material
 import org.bukkit.entity.EntityType
 import org.bukkit.entity.Villager.Profession
 import org.bukkit.util.Vector
 import org.luaj.vm2.LuaTable
 import org.luaj.vm2.LuaValue
-
 import com.guyde.plug.data.MobEquipment
+import com.guyde.plug.main.MainClass
 class RegisterWeapon{
   def load(obj : LuaValue) : LuaValue = {
      if (obj.istable()){
@@ -133,6 +132,8 @@ class LTable(val table : LuaTable){
   
   final def getTable(str : String) : LTable = new LTable(table.get(str).asInstanceOf[LuaTable])
  
+  final def get(str : String) : LuaValue = table.get(str)
+  
   final def getVector(str : String) : Vector = {
     val table1 = getTable(str)
     return new Vector(table1.getDouble("x"),table1.getDouble("y"),table1.getDouble("z"))
@@ -190,6 +191,30 @@ class RegisterQuestNPC{
        }
        val npc = new QuestNPC(pos,name,unlocal_name,after,getProfession(table.getString("profession")))
        Quests.registerNPC(npc)
+    }
+    return LuaValue.NIL
+  }
+}
+
+class RegisterNPC{
+  private final def getProfession(str : String) : Profession = {
+    str match {
+      case "PINK_ROBE" => return Profession.PRIEST
+      case "BLACK_OVERALL" => return Profession.BLACKSMITH
+      case "WHITE_OVERALL" => return Profession.BUTCHER
+      case "BROWN_ROBE" => return Profession.FARMER
+      case "WHITE_ROBE" => return Profession.LIBRARIAN
+    }
+    return null
+  }
+
+  def load(obj : LuaValue) : LuaValue = {
+    if (obj.istable()){
+       val table = new LTable(obj.asInstanceOf[LuaTable])
+       val pos = new Vector(table.getDouble("x"),table.getDouble("y"),table.getDouble("z"))
+       val name = table.getString("name")
+       val npc = new NPC(pos,name,new Trades(table.getTable("trades").table),getProfession(table.getString("villager_type")))
+       npc.Spawn(MainClass.world)
     }
     return LuaValue.NIL
   }
